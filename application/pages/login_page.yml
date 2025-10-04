@@ -1,0 +1,17 @@
+Login:
+  page_url: "https://ui.cogmento.com/"
+  page_title: "Cogmento CRM"
+  locators:
+    username:
+      - "xpath, //input[@placeholder='Email']"
+      - "css, input[placeholder='Email']"
+    password:
+      - "xpath, //input[@placeholder='Password']"
+      - "css, input[placeholder='Password']"
+    login_button:
+      - "xpath, //div[text()='Login']"
+      - "css, .ui.fluid.large.blue.submit.button"
+    error_message:
+      - "xpath, //div[@class='ui negative message']"
+    error_message_text:
+      - "xpath, //div[@class='ui negative message']/p"

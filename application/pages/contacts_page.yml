@@ -1,0 +1,42 @@
+Contacts:
+  page_url: "https://ui.cogmento.com/contacts"
+  page_title: "Cogmento CRM"
+  locators:
+    banner:
+      - "xpath, //div[@class = 'header item'], page_load_check"
+    page_heading:
+      - "xpath, //span[@class=  'selectable '], page_load_check"
+    select_all_contacts:
+      - "xpath, //div[@title = 'Select All'], page_load_check"
+    actions_dropdown:
+      - "xpath, //div[@class = 'ui blue basic horizontal label']/following-sibling::div[@name='action']"
+    actions_dropdown_menu:
+      - "xpath, //div[@class = 'ui blue basic horizontal label']/following-sibling::div[@name='action']/descendant::div[contains(@class, 'menu')]"
+    commit_button:
+      - "xpath, //div[@class = 'ui blue basic horizontal label']/following-sibling::div[@class = 'ui basic icon left attached button']"
+    confirmation_widget:
+      - "xpath, //div[text() = 'Confirm']/ancestor::div[contains(@class, 'page modals')]/preceding-sibling::iframe"
+    confirmation_accept_button:
+      - "xpath, //div[text() = 'Confirm']/following-sibling::div[@class = 'actions']/button[text() = 'Yes']"
+    confirmation_decline_button:
+      - "xpath, //div[text() = 'Confirm']/following-sibling::div[@class = 'actions']/button[text() = 'Cancel']"
+    no_content_message:
+      - "xpath, //div[@class = 'ui warning message']/p[text()='No records found'], page_load_check"
+    sidebar:
+      - "xpath, //div[@id = 'main-nav'], page_load_check"
+    contacts_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewcontact_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    companies_button:
+      - "xpath, //a[contains(@href,'contacts')]"
+    createnewcompany_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    deals_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewdeal_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    tasks_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewtask_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"

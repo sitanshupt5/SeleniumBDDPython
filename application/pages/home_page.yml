@@ -1,0 +1,24 @@
+Home:
+  page_url: "https://ui.cogmento.com/home"
+  page_title: "Cogmento CRM"
+  locators:
+    banner:
+      - "xpath, //div[@class = 'header item'], page_load_check"
+    sidebar:
+      - "xpath, //div[@id = 'main-nav'], page_load_check"
+    contacts_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewcontact_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    companies_button:
+      - "xpath, //a[contains(@href,'contacts')]"
+    createnewcompany_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    deals_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewdeal_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    tasks_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewtask_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"

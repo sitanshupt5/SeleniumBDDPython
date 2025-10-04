@@ -1,0 +1,42 @@
+MandatoryFieldDetails:
+  login_username_input: "sitanshupt5@gmail.com"
+  login_password_input: "Bapuna10@"
+  contacts_actions_dropdown_dbutton: True
+  contacts_actions_dropdown_menu_dlist: 'Delete'
+  contacts_select_all_contacts_checkbox: True
+  contacts_assert_no_content_message: "No records found"
+  createnewcontact_first_name_input: "Gojo"
+  createnewcontact_last_name_input: "Satoru"
+  createnewcontact_email_input: "gojo.satoru@demoslayer.com"
+  contactdetails_assert_email: "<gojo.satoru@demoslayer.com>"
+
+AllFieldDetails:
+  login_username_input: "sitanshupt5@gmail.com"
+  login_password_input: "Bapuna10@"
+  contacts_actions_dropdown_dbutton: True
+  contacts_actions_dropdown_menu_dlist: 'Delete'
+  contacts_select_all_contacts_checkbox: True
+  contacts_assert_no_content_message: "No records found"
+  createnewcontact_first_name_input: "Monkey"
+  createnewcontact_middle_name_input: "D"
+  createnewcontact_last_name_input: "Luffy"
+  createnewcontact_email_input: "monkey.d.luffy@onepiece.com"
+  createnewcontact_social_channel_type_dropdown_dbutton: True
+  createnewcontact_social_channel_type_dropdown_menu_dlist: "Facebook"
+  createnewcontact_social_channel_handle_input: "monkey.d.luffey@onepiece.com"
+  createnewcontact_address_street_input: "1, Mountain Road"
+  createnewcontact_address_city_input: "Foosha Village"
+  createnewcontact_address_state_input: "Goa Kingdom"
+  createnewcontact_address_zip_input: "55555"
+  createnewcontact_address_country_dropdown_dbutton: True
+  createnewcontact_address_country_dropdown_menu_dlist: "India"
+  createnewcontact_category_dropdown_dbutton: True
+  createnewcontact_category_dropdown_menu_dlist: "Contact"
+#  createnewcontact_timezone_dropdown_dbutton: True
+#  createnewcontact_timezone_dropdown_menu_dlist: "Asia/Kolkata"
+  createnewcontact_phone_country_dropdown_dbutton: True
+  createnewcontact_phone_country_dropdown_menu_dlist: "India"
+  createnewcontact_phone_number_input: "8888899999"
+  createnewcontact_status_dropdown_dbutton: True
+  createnewcontact_status_dropdown_menu_dlist: 'New'
+  contactdetails_assert_email: "<monkey.d.luffy@onepiece.com>"

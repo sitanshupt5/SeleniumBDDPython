@@ -1,0 +1,77 @@
+"CreateNewContact":
+  page_url: "https://ui.cogmento.com/contacts/new"
+  page_title: "Cogmento CRM"
+  locators:
+    banner:
+      - "xpath, //div[@class = 'header item'], page_load_check"
+    page_heading:
+      - "xpath, //span[@class=  'selectable '], page_load_check"
+    cancel_button:
+      - "xpath, //button[text()='Cancel'], page_load_check"
+    save_button:
+      - "xpath, //i[@class = 'save icon'], page_load_check"
+      - "xpath, //button[text()='Save'], page_load_check"
+    first_name:
+      - "xpath, //input[@name='first_name'], page_load_check"
+    last_name:
+      - "xpath, //input[@name='last_name'], page_load_check"
+    middle_name:
+      - "xpath, //input[@name='middle_name'], page_load_check"
+    email:
+      - "xpath, //input[@placeholder='Email address'], page_load_check"
+    status_dropdown:
+      - "xpath, //div[@class='ui field']/label[text()='Status']/following-sibling::div, page_load_check"
+    status_dropdown_menu:
+      - "xpath, //div[@class='ui field']/label[text()='Status']/following-sibling::div/div[contains(@class,'menu transition')]"
+    social_channel_type_dropdown:
+      - "xpath, //div[@name='channel_type'], page_load_check"
+    social_channel_type_dropdown_menu:
+      - "xpath, //div[@name='channel_type']/div[contains(@class,'menu transition')]"
+    social_channel_handle:
+      - "xpath, //div[@name='channel_type']/parent::div/following-sibling::div/descendant::input, page_load_check"
+    address_street:
+      - "xpath, //input[@placeholder='Street Address'], page_load_check"
+    address_city:
+      - "xpath, //input[@placeholder='City'], page_load_check"
+    address_state:
+      - "xpath, //input[@placeholder='State / County'], page_load_check"
+    address_zip:
+      - "xpath, //input[@placeholder='Post Code'], page_load_check"
+    address_country_dropdown:
+      - "xpath, //div[@name = 'country'], page_load_check"
+    address_country_dropdown_menu:
+      - "xpath, //div[@name = 'country']/div[contains(@class,'menu transition')]"
+    category_dropdown:
+      - "xpath, //div[@name='category' and @class = 'ui selection dropdown']/i, page_load_check"
+      - "xpath, //div[@name='category']/i, page_load_check"
+    category_dropdown_menu:
+      - "xpath, //div[@name='category']/div[contains(@class,'menu transition')]"
+    timezone_dropdown:
+      - "xpath, //div[@name ='timezone']/input, page_load_check"
+    timezone_dropdown_menu:
+      - "xpath, //div[@name ='timezone']/div[contains(@class,'menu transition')]"
+    phone_number:
+      - "xpath, //input[@placeholder='Number'], page_load_check"
+    phone_country_dropdown:
+      - "xpath, //label[text() = 'Phone']/following-sibling::div/descendant::div[@name ='hint'], page_load_check"
+    phone_country_dropdown_menu:
+      - "xpath, //label[text() = 'Phone']/following-sibling::div/descendant::div[@name ='hint']/div[contains(@class,'menu transition')]"
+    sidebar:
+      - "xpath, //div[@id = 'main-nav'], page_load_check"
+    contacts_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewcontact_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    companies_button:
+      - "xpath, //a[contains(@href,'contacts')]"
+    createnewcompany_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    deals_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewdeal_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+    tasks_button:
+      - "xpath, //a[contains(@href,'contacts')], page_load_check"
+    createnewtask_button:
+      - "xpath, //a[contains(@href,'contacts')]/following-sibling::button, page_load_check"
+

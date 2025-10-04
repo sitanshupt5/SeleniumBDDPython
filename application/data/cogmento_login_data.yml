@@ -1,0 +1,23 @@
+HappyPathLogin:
+  login_username_input: "sitanshupt5@gmail.com"
+  login_password_input: "Bapuna10@"
+
+InvalidUsernameLogin:
+  login_username_input: "sitanshupt5"
+  login_password_input: "Bapuna10@"
+  login_assert_error_message_text: "Invalid login"
+
+InvalidPasswordLogin:
+  login_username_input: "sitanshupt5@gmail.com"
+  login_password_input: "Bapuna"
+  login_assert_error_message_text: "Invalid login"
+
+NullPasswordLogin:
+  login_username_input: "sitanshupt5@gmail.com"
+  login_password_input: ""
+  login_assert_error_message_text: "Invalid request"
+
+NullUsernameLogin:
+  login_username_input: ""
+  login_password_input: "Bapuna10@"
+  login_assert_error_message_text: "Invalid request"
