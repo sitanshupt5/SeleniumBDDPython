@@ -98,26 +98,6 @@ def generate_allure_report(app: str) -> None:
     subprocess.run(cmd, check=False)
 
 
-def maybe_docx_pdf():
-    import os, shutil, subprocess
-    root = _project_root()
-    app = os.getenv("APP_NAME", "application")
-    results = os.path.join(root, "reports", app, "allure-results")
-    run_id = os.getenv("RUN_ID", "latest")
-    docx_out = os.path.join(root, "download", app, f"allure-report_{run_id}.docx")
-    os.makedirs(os.path.dirname(docx_out), exist_ok=True)
-
-    exe = shutil.which("allure-docx") or shutil.which("allure-docx.exe")
-    if not exe:
-        print("allure-docx not found on PATH. Install it then run:\n"
-              f"  allure-docx --pdf {results} {docx_out}")
-        return
-
-    cmd = [exe, "--pdf", results, docx_out]
-    print("Generating DOCX/PDF via allure-docx:", " ".join(cmd))
-    subprocess.run(cmd, check=False)
-
-
 if __name__ == "__main__":
     args, passthru = _parse_cli()
     RUN_ID = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -140,5 +120,4 @@ if __name__ == "__main__":
     print(f"RUN_ID={RUN_ID} APP={app} TAGS={tags or ''} ENV={env} HEADLESS={headless or 'unset'}")
     exit_code = run_tests(tags=tags, cur_dir=app, cur_env=env, headless=headless)
     generate_allure_report(app)
-    maybe_docx_pdf()
     sys.exit(exit_code)
