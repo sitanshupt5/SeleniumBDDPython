@@ -82,22 +82,16 @@ pipelines:
     # Optional: manual re-deploy of OIDC role (only if you still need it)
     Deploy-OIDC-Role:
       - step:
-          name: Deploy Bitbucket OIDC Role
+          name: Deploy Bitbucket OIDC Role (bootstrap)
           script:
             - set -euo pipefail
 
-            # Install AWS CLI
+            # Use the access keys from repo variables (AWS CLI auto-picks them up)
             - apt-get update -y && apt-get install -y awscli
-
-            # Export OIDC token for AWS CLI
-            - export AWS_WEB_IDENTITY_TOKEN_FILE="$(pwd)/web-identity-token"
-            - echo "$BITBUCKET_STEP_OIDC_TOKEN" > "$AWS_WEB_IDENTITY_TOKEN_FILE"
-
-            # Confirm identity
             - aws sts get-caller-identity
 
-            # Deploy
             - aws cloudformation deploy \
               --stack-name sbp-bitbucket-oidc \
               --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yaml \
               --capabilities CAPABILITY_NAMED_IAM
+
