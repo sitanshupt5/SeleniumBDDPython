@@ -92,6 +92,6 @@ pipelines:
 
             - aws cloudformation deploy \
               --stack-name sbp-bitbucket-oidc \
-              --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yaml \
+              --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yml \
               --capabilities CAPABILITY_NAMED_IAM
 
