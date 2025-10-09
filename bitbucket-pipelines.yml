@@ -93,7 +93,7 @@ pipelines:
             - export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:=ap-south-1}"
             - test -f configuration/cloudformation/bitbucket-oidc-role-ecs.yml
             - aws sts get-caller-identity
-            - aws cloudformation deploy --region "$AWS_DEFAULT_REGION" --stack-name sbp-bitbucket-oidc-role --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yml --capabilities CAPABILITY_NAMED_IAM
+            - aws cloudformation deploy --region "$AWS_DEFAULT_REGION" --stack-name sbp-bitbucket-oidc-role --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides RepoFullName="$BITBUCKET_REPO_FULL_NAME" BranchPattern="ref/heads/*"
 
     Deploy-OIDC-Provider:
       - step:
