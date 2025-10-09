@@ -82,8 +82,7 @@ pipelines:
     # Optional: manual re-deploy of OIDC role (only if you still need it)
     Deploy-OIDC-Role:
       - step:
-          name: Deploy Bitbucket OIDC Role (hardcoded)
-          oidc: true
+          name: Deploy Bitbucket OIDC Role
           script:
             - set -euo pipefail
 
