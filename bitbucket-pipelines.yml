@@ -5,18 +5,21 @@ pipelines:
     Deploy-Infra:
       - step:
           name: Deploy public S3 website (CFN)
-          oidc: true
           script:
             - set -euo pipefail
-            - export AWS_WEB_IDENTITY_TOKEN_FILE="$(pwd)/web-identity-token"
-            - echo "$BITBUCKET_STEP_OIDC_TOKEN" > "$AWS_WEB_IDENTITY_TOKEN_FILE"
+            - apt-get update -y && apt-get install -y awscli
+            - ls -la configuration/cloudformation || true
+            - export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:=ap-south-1}"
+            - test -f configuration/cloudformation/s3-allure-infra-ecs.yml
             - aws sts get-caller-identity
-            - aws cloudformation deploy \
-                --stack-name sbp-allure-public \
-                --template-file configuration/cloudformation/s3-allure-infra-ecs.yaml \
-                --capabilities CAPABILITY_NAMED_IAM
+            - aws cloudformation deploy --stack-name sbp-allure-public --template-file configuration/cloudformation/s3-allure-infra-ecs.yml --capabilities CAPABILITY_NAMED_IAM
 
     Run-Tests:
+      - variables:
+          - name: APP
+          - name: ENV
+          - name: TAGS
+          - name: HEADLESS
       - step:
           name: Run Behave + Allure + Publish + Email
           oidc: true
@@ -100,8 +103,6 @@ pipelines:
           name: Deploy Bitbucket OIDC Provider
           script:
             - set -euo pipefail
-
-            # Use the access keys from repo variables (AWS CLI auto-picks them up)
             - apt-get update -y && apt-get install -y awscli
             - pwd && ls -la
             - ls -la configuration/cloudformation || true
