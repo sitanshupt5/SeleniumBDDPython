@@ -86,10 +86,19 @@ pipelines:
           oidc: true
           script:
             - set -euo pipefail
+
+            # Install AWS CLI
+            - apt-get update -y && apt-get install -y awscli
+
+            # Export OIDC token for AWS CLI
             - export AWS_WEB_IDENTITY_TOKEN_FILE="$(pwd)/web-identity-token"
             - echo "$BITBUCKET_STEP_OIDC_TOKEN" > "$AWS_WEB_IDENTITY_TOKEN_FILE"
+
+            # Confirm identity
             - aws sts get-caller-identity
+
+            # Deploy
             - aws cloudformation deploy \
-                --stack-name sbp-bitbucket-oidc \
-                --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yaml \
-                --capabilities CAPABILITY_NAMED_IAM
+              --stack-name sbp-bitbucket-oidc \
+              --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yaml \
+              --capabilities CAPABILITY_NAMED_IAM
