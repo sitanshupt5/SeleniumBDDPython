@@ -85,15 +85,13 @@ pipelines:
           name: Deploy Bitbucket OIDC Role (bootstrap)
           script:
             - set -euo pipefail
+
+            # Use the access keys from repo variables (AWS CLI auto-picks them up)
             - apt-get update -y && apt-get install -y awscli
-            # Show where we are and what files exist (helps debug paths)
             - pwd && ls -la
             - ls -la configuration/cloudformation || true
-            # Region (use your repo var, or hardcode if you prefer)
             - : "${AWS_DEFAULT_REGION:=ap-south-1}"
-            # Sanity check the template path (note: .yaml vs .yml)
-            - test -f configuration/cloudformation/bitbucket-oidc-role-ecs.yaml
-            # Deploy on a single line (no backslashes)
-            - aws cloudformation deploy --region "$AWS_DEFAULT_REGION" --stack-name sbp-bitbucket-oidc --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yaml --capabilities CAPABILITY_NAMED_IAM
-
+            - test -f configuration/cloudformation/bitbucket-oidc-role-ecs.yml
+            - aws sts get-caller-identity
+            - aws cloudformation deploy -region "$AWS_DEFAULT_REGION" --stack-name sbp-bitbucket-oidc --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yml --capabilities CAPABILITY_NAMED_IAM
 
