@@ -82,7 +82,7 @@ pipelines:
     # Optional: manual re-deploy of OIDC role (only if you still need it)
     Deploy-OIDC-Role:
       - step:
-          name: Deploy Bitbucket OIDC Role (bootstrap)
+          name: Deploy Bitbucket OIDC Role
           script:
             - set -euo pipefail
 
@@ -94,4 +94,19 @@ pipelines:
             - test -f configuration/cloudformation/bitbucket-oidc-role-ecs.yml
             - aws sts get-caller-identity
             - aws cloudformation deploy --region "$AWS_DEFAULT_REGION" --stack-name sbp-bitbucket-oidc --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yml --capabilities CAPABILITY_NAMED_IAM
+
+    Deploy-OIDC-Provider:
+      - step:
+          name: Deploy Bitbucket OIDC Provider
+          script:
+            - set -euo pipefail
+
+            # Use the access keys from repo variables (AWS CLI auto-picks them up)
+            - apt-get update -y && apt-get install -y awscli
+            - pwd && ls -la
+            - ls -la configuration/cloudformation || true
+            - export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:=ap-south-1}"
+            - test -f configuration/cloudformation/bitbucket-oidc-provider-ecs.yml
+            - aws sts get-caller-identity
+            - aws cloudformation deploy --region "$AWS_DEFAULT_REGION" --stack-name sbp-bitbucket-oidc --template-file configuration/cloudformation/bitbucket-oidc-provider-ecs.yml --capabilities CAPABILITY_NAMED_IAM
 

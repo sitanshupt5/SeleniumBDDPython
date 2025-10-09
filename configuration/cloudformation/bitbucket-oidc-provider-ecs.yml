@@ -1,0 +1,12 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Bitbucket OIDC Identity Provider (create once)
+
+Resources:
+  BitbucketOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: "https://api.bitbucket.org/2.0/workspaces/spt51992/pipelines-config/identity/oidc"
+      ClientIdList:
+        - "ari:cloud:bitbucket::workspace/39c79d5f-e07d-4bc0-9107-bf39b0c24f41"
+      ThumbprintList:
+        - "9e99a48a9960b14926bb7f3b02e22da2b0ab7280"  # Bitbucket OIDC root CA thumbprint
