@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: S3 bucket for Allure Reports
+
+Parameters:
+  BucketName:
+    Type: String
+  EnableWebsiteHosting:
+    Type: String
+    AllowedValues: [true, false]
+    Default: False
+  PublicRead:
+    Type: String
+    AllowedValues: [true, false]
+    Default: False
+
+Conditions:
+  EnableWebsite: !Equals [ !Ref EnableWebsiteHosting, "true" ]
+  PublicReadCondition: !Equals [ !Ref PublicRead, "true" ]
+
+Resources:
+  ReportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      VersioningConfiguration:
+        Status: Enabled
+
+  BucketPolicy:
+    Condition: PublicReadCondition
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ReportsBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub arn:aws:s3:::${BucketName}/*
+
+Outputs:
+  WebsiteURL:
+    Value: !Sub http://${BucketName}.s3-website-${AWS::Region}.amazonaws.com
+    Condition: EnableWebsite

@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bitbucket OIDC provider + IAM role (all values hardcoded)
+
+Resources:
+  # 1) OIDC Provider for your Bitbucket workspace
+  BitbucketOIDC:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: "https://api.bitbucket.org/2.0/workspaces/spt51992/pipelines-config/identity/oidc"
+      ClientIdList:
+        - "ari:cloud:bitbucket::workspace/39c79d5f-e07d-4bc0-9107-bf39b0c24f41"
+      ThumbprintList:
+        - a031c46782e6e6c662c2c87c76da9aa62ccabd8e
+
+  # 2) Role assumed by Bitbucket Pipelines via OIDC
+  PipelinesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "bitbucket-pipelines-oidc-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref BitbucketOIDC
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "api.bitbucket.org/2.0/workspaces/spt51992/pipelines-config/identity/oidc:aud": "ari:cloud:bitbucket::workspace/39c79d5f-e07d-4bc0-9107-bf39b0c24f41"
+
+      Policies:
+        # Access to the specific S3 reports bucket (hardcoded name)
+        - PolicyName: S3ReportsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ "s3:ListBucket" ]
+                Resource: "arn:aws:s3:::automation-testing-artifacts"
+              - Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                  - "s3:DeleteObject"
+                  - "s3:CopyObject"
+                Resource: "arn:aws:s3:::automation-testing-artifacts/*"
+
+        # Let the pipeline deploy your S3 stack (and future CFN stacks if you want)
+        - PolicyName: CloudFormationDeploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "cloudformation:CreateStack"
+                  - "cloudformation:UpdateStack"
+                  - "cloudformation:DeleteStack"
+                  - "cloudformation:Describe*"
+                  - "cloudformation:GetTemplate"
+                  - "cloudformation:ValidateTemplate"
+                Resource: "*"
+
+        # Email notifications via SES v2
+        - PolicyName: SESEmailSend
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ses:SendEmail"
+                  - "ses:SendRawEmail"
+                Resource: "*"
+
+Outputs:
+  RoleArn:
+    Value: !GetAtt PipelinesRole.Arn
+  OIDCProviderArn:
+    Value: !Ref BitbucketOIDC

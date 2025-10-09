@@ -1,0 +1,95 @@
+image: python:3.12
+
+pipelines:
+  custom:
+    Deploy-Infra:
+      - step:
+          name: Deploy public S3 website (CFN)
+          oidc: true
+          script:
+            - set -euo pipefail
+            - export AWS_WEB_IDENTITY_TOKEN_FILE="$(pwd)/web-identity-token"
+            - echo "$BITBUCKET_STEP_OIDC_TOKEN" > "$AWS_WEB_IDENTITY_TOKEN_FILE"
+            - aws sts get-caller-identity
+            - aws cloudformation deploy \
+                --stack-name sbp-allure-public \
+                --template-file configuration/cloudformation/s3-allure-infra-ecs.yaml \
+                --capabilities CAPABILITY_NAMED_IAM
+
+    Run-Tests:
+      - step:
+          name: Run Behave + Allure + Publish + Email
+          oidc: true
+          caches:
+            - pip
+          script:
+            - set -euo pipefail
+            - export AWS_WEB_IDENTITY_TOKEN_FILE="$(pwd)/web-identity-token"
+            - echo "$BITBUCKET_STEP_OIDC_TOKEN" > "$AWS_WEB_IDENTITY_TOKEN_FILE"
+            - aws sts get-caller-identity
+
+            # Tools (awscli, JRE for Allure, Chrome for Selenium)
+            - apt-get update -y && apt-get install -y awscli jq curl gnupg unzip default-jre-headless
+            - curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-linux-signing-keyring.gpg
+            - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-linux-signing-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+            - apt-get update -y && apt-get install -y google-chrome-stable fonts-liberation
+
+            # Python deps
+            - pip install --upgrade pip
+            - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+            # Allure history seed (best effort)
+            - mkdir -p "reports/${APP}/allure-results/history"
+            - aws s3 sync "s3://automation-testing-artifacts/${S3_PREFIX}/latest/history" "reports/${APP}/allure-results/history" --exact-timestamps || true
+
+            # Run tests (same as local)
+            - python run_behave.py --app "$APP" --tags "$TAGS" --env "$ENV" --headless "$HEADLESS" || true
+
+            # Allure CLI install + generate
+            - |
+              if ! command -v allure >/dev/null 2>&1; then
+                echo "Installing Allure CLI..."
+                curl -sL https://github.com/allure-framework/allure2/releases/download/2.29.0/allure-2.29.0.tgz -o /tmp/allure.tgz
+                tar -xzf /tmp/allure.tgz -C /tmp
+                ln -s /tmp/allure-2.29.0/bin/allure /usr/local/bin/allure
+              fi
+            - allure generate "reports/${APP}/allure-results" --clean -o "reports/${APP}/allure-reports"
+
+            # Publish (timestamped + latest)
+            - RUN_ID=$(date +%Y%m%d-%H%M%S)
+            - TS="reports/${APP}/${RUN_ID}"
+            - mkdir -p "$TS"
+            - mv "reports/${APP}/allure-results" "$TS/"
+            - mv "reports/${APP}/allure-reports" "$TS/"
+            - aws s3 sync "$TS/allure-results" "s3://automation-testing-artifacts/${S3_PREFIX}/${RUN_ID}/allure-results" --delete
+            - aws s3 sync "$TS/allure-reports" "s3://automation-testing-artifacts/${S3_PREFIX}/${RUN_ID}/allure-report" --delete
+            - aws s3 sync "$TS/allure-reports" "s3://automation-testing-artifacts/${S3_PREFIX}/latest" --delete
+            - aws s3 sync "$TS/allure-reports/history" "s3://automation-testing-artifacts/${S3_PREFIX}/latest/history" --delete
+
+            # Email the public website URL to latest/index.html
+            - REPORT_URL="http://automation-testing-artifacts.s3-website-${AWS_DEFAULT_REGION}.amazonaws.com/${S3_PREFIX}/latest/index.html"
+            - SUBJECT="${SES_SUBJECT_PREFIX:-SeleniumBDDPython}: Report ${BITBUCKET_BRANCH} #${BITBUCKET_BUILD_NUMBER}"
+            - RECIPS_JSON=$(python -c 'import os,json; print(json.dumps([a.strip() for a in os.environ.get("SES_TO","").split(",") if a.strip()]))')
+            - BODY="Allure Report (public):\n${REPORT_URL}\n"
+            - aws sesv2 send-email \
+                --from-email-address "$SES_FROM" \
+                --destination "ToAddresses=${RECIPS_JSON}" \
+                --content "{\"Simple\":{\"Subject\":{\"Data\":\"$SUBJECT\",\"Charset\":\"UTF-8\"},\"Body\":{\"Text\":{\"Data\":\"$BODY\",\"Charset\":\"UTF-8\"}}}}"
+
+            # Clean up
+            - rm -rf "reports/${APP}"
+
+    # Optional: manual re-deploy of OIDC role (only if you still need it)
+    Deploy-OIDC-Role:
+      - step:
+          name: Deploy Bitbucket OIDC Role (hardcoded)
+          oidc: true
+          script:
+            - set -euo pipefail
+            - export AWS_WEB_IDENTITY_TOKEN_FILE="$(pwd)/web-identity-token"
+            - echo "$BITBUCKET_STEP_OIDC_TOKEN" > "$AWS_WEB_IDENTITY_TOKEN_FILE"
+            - aws sts get-caller-identity
+            - aws cloudformation deploy \
+                --stack-name sbp-bitbucket-oidc \
+                --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yaml \
+                --capabilities CAPABILITY_NAMED_IAM
