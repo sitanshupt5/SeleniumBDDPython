@@ -90,7 +90,7 @@ pipelines:
             - apt-get update -y && apt-get install -y awscli
             - pwd && ls -la
             - ls -la configuration/cloudformation || true
-            - : "${AWS_DEFAULT_REGION:=ap-south-1}"
+            - export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:=ap-south-1}"
             - test -f configuration/cloudformation/bitbucket-oidc-role-ecs.yml
             - aws sts get-caller-identity
             - aws cloudformation deploy -region "$AWS_DEFAULT_REGION" --stack-name sbp-bitbucket-oidc --template-file configuration/cloudformation/bitbucket-oidc-role-ecs.yml --capabilities CAPABILITY_NAMED_IAM
