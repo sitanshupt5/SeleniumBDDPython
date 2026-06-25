@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Test Report Portal</title>
+</head>
+<body>
+    <div id="navigation"></div>
+    <div id="listing"></div>
+
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script type="text/javascript">
+        // reference link https://github.com/rufuspollock/s3-bucket-listing
+        //
+        // NOTE: The BUCKET_URL below is automatically replaced by the Bootstrap
+        // pipeline with your actual S3 bucket URL. Do not edit it manually.
+        var S3BL_IGNORE_PATH = true;
+        var BUCKET_URL =  'https://YOUR_S3_BUCKET_NAME.s3.amazonaws.com';
+
+        // Files and folder to hide from the portal listing.
+        // 'history' folders are internal ─ they store Allure trend data, not reports.
+        var EXCLUDE_FILE = [
+            'index.html',
+            's3BucketListing.js',
+            'js/',
+            /^[^/]+\/history\//      // hides APP/history/ at all app levels
+        ];
+
+        // When a build number folder (APP/DATE/BUILD/) is clicked, jump straight
+        // to the Allure index.html inside it rather than showing its file listing.
+        var DIRECT_ACCESS_ALLURE_URL_ADDITION = 'index.html';
+
+        // Regex that matches the 3-level report path: APP/YYYY-MM-DD/BUILD_NUMBER/
+        // Examples that match:
+        // application/2026-06-23/2052/
+        var REGEX_PATH_FOR_DIRECT_ACCESS_ALLURE = new RegExp(
+            '^[a-z0-9_-]+\\/[0-9]{4}-[0-9]{2}-[0-9]{2}\\/[0-9]+\\/$'
+        );
+
+        // Sort directories newest-first (Z2A on folder names works because
+        // dates are YYYY-MM-DD and build number are numeric strings)
+        var S3B_SORT = 'Z2A';
+    </script>
+    <script type="text/javascript" src="./js/s3BucketListing.js"></script>
+
+</body>
+
+</html>

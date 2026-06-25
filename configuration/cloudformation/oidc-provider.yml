@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Registers Bitbucket Pipelines as a trusted OIDC identity provider in AWS IAM.
+  Deploy this ONCE per AWS account. It allows Bitbucket pipeline steps to
+  authenticate with AWS without storing any long-lived credentials.
+
+Parameters:
+  WorkspaceSlug:
+    Type: String
+    Description: Your Bitbucket workspace slug (e.g. my workspace)
+
+  WorkspaceUUID:
+    Type: String
+    Description: >
+      Your Bitbucket workspace UUID including curly braces
+      (e.g. {39c79d5f -e07d-4bc0-9107-bf39b0c24f41})
+
+Resources:
+  BitbucketOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: !Sub "https://api.bitbucket.org/2.0/workspaces/${WorkspaceSlug}/pipelines-config/identity/oidc"
+      ClientIdList:
+        - !Sub "ari:cloud:bitbucket::workspace/${WorkspaceUUID}"
+      ThumbprintList:
+        - "9e99a48a9960b14926bb7f3b02e22da2b0ab7280"
+
+Outputs:
+  OIDCProviderArn:
+    Description: ARN of the Bitbucket OIDC provider (referenced by the IAM role stack)
+    Value: !GetAtt BitbucketOIDCProvider.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-OIDCProviderArn"

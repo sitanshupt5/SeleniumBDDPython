@@ -360,5 +360,228 @@ sec5 = 5
 headless = false                # Override with --headless true at runtime
 ```
 
+---
+
+## CI/CD Setup (Bitbucket Pipelines + AWS)
+
+This section walks through setting up automated test execution on Bitbucket  Pipelines with reports
+hosted on AWS S3. Follow the steps in order ─ each section builds on the previous one.
+
+---
+
+### Pre-Requisites
+
+You need the following before running any pipeline.
+
+#### 1. AWS Account
+
+You need an AWS account and an IAM user with permission to create the infrastructure.
+
+**Create an IAM user:**
+1. Log in to the [AWS Console](https://console.aws.amazon.com)
+2. Got to **IAM** → **Users** → **Create user**
+3. Give it a name (e.g. `bitbucket-bootstrap`)
+4. On the **Permissions** page, choose **Attach policies directly**
+5. Attach these managed policies:
+   - `IAMFullAccess`
+   - `AmazonS3FullAccess`
+   - `AWSCloudFormationFullAccess`
+6. Finish creating the user
+7. Go to the user → **Security credentials** → **Create access key**
+8. Choose **Other** → create → **download or copy both values**:
+   - Access key ID
+   - Secret access key
+
+> These values are used only during the one-time Bootstrap step. You can delete them from Bitbucket after Bootstrap is complete.
+
+#### 2. Bitbucket Workspace Slug and UUID
+
+You need two identifiers for your Bitbucket workspace:
+
+**Workspace slug** ─ visible in the URL when you are in your workspace:
+```
+https://bitbucket.org/{WORKSPACE_SLUG}/
+```
+
+**Workspace UUID** ─ found in Bitbucket settings:
+1. Go to your Bitbucket workspace
+2. Click **Settings** (bottom of the left sidebar)
+3. Click **Workspace details**
+4. Copy the **Workspace UUID** (looks like `{39c79d5f-e07d-4bc0-9107-bf39b0c24f41}`, including the curly braces)
+
+#### 3. Your Repository Slug
+
+The repo slug is the last part of your repository URL:
+```
+https://bitbucket.org/{workspace}/{REPO_SLUG}/
+```
+
+---
+
+### Step 1 ─ Fill in the Config File
+
+Open `configuration/pipeline-config.env` and replace every placeholder with your real values.
+
+```
+WORKSPACE_SLUG      → Your Bitbucket workspace slug
+WORKSPACE_UUID      → Your Bitbucket workspace UUID (with curly braces)
+REPO_SLUG           → Your Bitbucket repository slug
+AWS_REGION          → The AWS region you want to deploy to (e.g. ap-south-1)
+S3_BUCKET_NAME      → A unique name for your S3 bucket (e.g. mycompany-allure-reports)
+STACK_PREFIX        → A short prefix for your AWS resource names
+```
+
+**S3 bucket name rules:** lowercase letters, numbers and hyphens only. No spaces or underscores.
+Must be globally unique ─ if the name is already taken by any other AWS account, Bootstrap will fail.
+Add something specific like your company name to make it unique.
+
+---
+
+### Step 2 ─ Set BitBucket Repository Variables
+
+Repository variables are like a secure notepad inside Bitbucket. Sensitive values like AWS keys
+go here ─ never in files that are commited to the repository.
+
+**How to add repository variables:**
+1. Go to your Bitbucket repository
+2. Click **Repository settings** (bottom of the left sidebar)
+3. Click **Repository variables** (under Pipelines)
+4. For each variable below, click **Add variable**, enter the Name and Value, and click **Add**
+
+**Variables to add before Bootstrap:**
+
+| Name | Value | Secured? |
+|---|---|---|
+| `AWS_ACCESS_KEY_ID` | Your IAM access key ID | Yes (tick the checkbox) |
+| `AWS_SECRET_ACCESS_KEY` | Your IAM secret access key | Yes (tick the checkbox) |
+| `AWS_DEFAULT_REGION` | Your AWS region (e.g. `ap-south-1`) | No |
+
+> Ticking **Secured** hides the value from logs and from other users.
+
+---
+
+### Step 3 ─ Run the Bootstrap Pipeline
+
+The Bootstrap pipeline create all AWS infrastructure and upload the report portal.
+It only need to be run once.
+
+**How to trigger it:**
+1. Go to your Bitbucket repository
+2. Click **Pipelines** in the left sidebar
+3. Click **Run pipeline** (top right)
+4. Under **Pipeline**, select **Bootstrap**
+5. Click **Run**
+
+The pipeline will:
+- Deploy 3 AWS CloudFormation stacks (OIDC provider, IAM role, S3 bucket)
+- Upload the report portal website to your S3 bucket
+- Print your **Role ARN** and **Portal URL** at the end of the log
+
+**At the end of the Bootstrap log, look for this section:**
+```
+================================================================
+BOOTSTRAP COMPLETE
+ACTION REQUIRED ─ Save this as a Bitbucket repository variable:
+  Name : BITBUCKET_AWS_ROLE_ARN
+  Value: arn:aws:iam::123456789012:role/myproject-bitbucket-oidc-role
+
+Your report portal URL (bookmark this):
+  http://mycompany-allure-reports.s3-website-ap-south-1.amazonaws.com
+================================================================
+```
+
+---
+
+### Step 4 ─ Save the Role ARN
+
+1. Copy the **Value** shown next to ` BITBUCKET_AWS_ROLE_ARN` in the Bootstrap log
+2. Go back to **Repository settings** → **Repository variables**
+3. Add a new variable:
+
+| Name | Value | Secured? |
+|---|---|---|
+| `BITBUCKET_AWS_ROLE_ARN` | The ARN you just copied | Yes |
+
+After this step, the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` variable are no longer needed
+and can be deleted from Repository variables.
+
+---
+
+### Step 5 ─ Bookmark the Portal URL
+
+Copy the URL printed under **"Your report portal URL"** in the Bootstrap log and bookmark it in
+your browser. This is where all test reports will be published.
+
+---
+
+### Running Tests
+
+Once Bootstrap is complete, you can run tests any time using the **Run-Tests** pipeline.
+
+**How to trigger it:**
+1. Go to **Pipelines** → **Run pipeline**
+2. Select **Run-Tests**
+3. Fill in the parameters (or leave them at their defaults):
+
+| Parameter | Default | What it means |
+|---|---|---|
+| `APP` | `application` | The app folder to test. Must match a folder name in the repository root (e.g. `application`) |
+| `ENV` | `qa` | The environment to test against. `qa` and `dev` are configured in `configuration/config.ini`. |
+| `TAGS` | `@Sample` | Which test scenarios to run. Must match a tag from a `.feature` file (e.g. `@CreateContact`, `@Sample`). |
+
+**Finding available tags:**
+Open any `.feature` file under `application/features/`. Tags appear above `Scenario:` lines,
+starting with `@`:
+```gherkin
+@CreateContact
+Scenario: Create a new contact
+```
+
+4. Click **Run**
+
+The pipeline will run the tests, generate the Allure report and upload it to S3 under:
+```
+APP / YYYY-MM-DD / BUILD_NUMBER /
+```
+The build number matches the pipeline run number shown in Bitbucket.
+
+---
+
+### Viewing Reports
+
+1. Open the portal URL you bookmarked in Step 5
+2. You will see a list of app directories (e.g. `application/`)
+3. Click oan app directory to see a list of dates
+4. Click a data to see a list of pipeline build numbers
+5. Click a build number to open the fill Allure report directly
+
+**Understanding the Allure report:**
+- **Overview**  ─ total pass/fail count and pie char for this run
+- **Trend**     ─ pass/fail history across multiple runs (appears from the second run onward)
+- **Suites**    ─ breakdown by scenario and feature file
+- **Timeline**  ─ time taken per scenario
+- Click any failed scenario to see the step that failed, screenshot and error message
+
+---
+
+### Re-Deploying Infrastructure
+
+If you ever change ` pipeline-config.env` or the CloudFormation templates, run the **Deploy-Infra**
+pipeline to apply the changes. This uses OIDC (no static keys needed).
+
+---
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Bootstrap fails: `AWS_ACCESS_KEY_ID not set` | Repo variable not added | Add `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` is Repository variables |
+| Run-Tests fails: `BITBUCKET_AWS_ROLE_ARN not set` | Step 4 not completed | Copy the role ARN from the Boostrap log and add it as a repo variable |
+| Run-Tests fails at OIDC step with `AccessDenied` | Role ARN is wornd or repo/workspace mismatch | Re-check that `WORKSPACE_SLUG`, `WORKSPACE_UUID` and `REPO_SLUG` in `pipeline-config.env` are correct, then re-run Bootstrap |
+| Portal URL shows blank page or XML | Bootstrap did not upload the webApp | Re-run the Bootstrap pipeline |
+| Trend graphs not showing | Expected on first run ─ not history exists yet | Run tests a second time; trends appear from run 2 onward |
+| App directory not visible in portal | No test run has been completed for that app yet | Run the Run-Tests pipeline with the correct `APP` value |
+| S3 bucket name already taken | Another AWS account owns that name | Choose a more unique name in `pipeline-config.env` and re-run Bootstrap |
+
 
 
