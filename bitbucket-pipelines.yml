@@ -1,0 +1,247 @@
+image: python:3.12
+
+# =============================================================================
+# Bitbucket Pipelines - Selenium BDD Framework
+# =============================================================================
+# All pipelines are CUSTOM (manually triggered). There are not automatic triggers.
+#
+# PIPELINES:
+#   1. Bootstrap      ─ Run once to set up all AWS infrastructure.
+#   2. Deploy-Infra   ─ Re-run if Cloudformation templates or webApp files change.
+#   3. Run-Tests      ─ Run any time to execute tests and publish the Allure report.
+#
+# BEFORE RUNNING BOOTSTRAP, set these Bitbucket repository variables:
+#   AWS_ACCESS_KEY_ID       ─ Your AWS IAM user access key
+#   AWS_SECRET_ACCESS_KEY   ─ Your AWS IAM user secret key
+#   AWS_DEFAULT_REGION      ─ AWS region (e.g. ap-south-1)
+#
+# AFTER BOOTSTRAP, add one more repository variable:
+#   BITBUCKET_AWS_ROLE_ARN  ─ Copied from the bootstrap pipeline log output
+# =============================================================================
+
+pipelines:
+  custom:
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 1. BOOTSTRAP ─ Run once to create all AWS infrastructure
+    # ─────────────────────────────────────────────────────────────────────────
+    Bootstrap:
+      - step:
+          name: "Deploy AWS infrastructure + Upload Report Portal"
+          script:
+            - set  -euo pipefail
+            - pip install --quiet --upgrade awscli
+
+            # Load project config
+            - set -a && source configuration/pipeline-config.env && set +a
+
+            # Verify AWS credentials available
+            - ': "${AWS_ACCESS_KEY_ID:?Set AWS_ACCESS_KEY_ID as a Bitbucket repository variable}"'
+            - ': "${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY as a Bitbucket repository variable}"'
+            - export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}"
+            - echo "==> Verifying AWS identity..."
+            - aws sts get-caller-identity
+
+            # Deploy OIDC Provider (registers Bitbucket as trusted identity provider)
+            - echo "==> Deploying OIDC Provider stack..."
+            - bash deploy-cfn.sh "${STACK_PREFIX}-oidc-provider"
+                "configuration/cloudformation/oidc-provider.yml"
+                --capabilities CAPABILITY_NAMED_IAM
+                --parameter-overrides
+                  WorkspaceSlug="${WORKSPACE_SLUG}"
+                  WorkspaceUUID="${WORKSPACE_UUID}"
+
+            # Deploy OIDC Role (IAM role Bitbucket pipelines will assume)
+            - echo "==> Deploying OIDC Role stack..."
+            - bash deploy-cfn.sh "${STACK_PREFIX}-oidc-role"
+                "configuration/cloudformation/oidc-role.yml"
+                --capabilities CAPABILITY_NAMED_IAM
+                --parameter-overrides
+                  WorkspaceSlug="${WORKSPACE_SLUG}"
+                  WorkspaceUUID="${WORKSPACE_UUID}"
+                  RepoSlug="${REPO_SLUG}"
+                  BranchPattern="refs/heads/*"
+                  RoleName="${STACK_PREFIX}-bitbucket-oidc-role"
+                  S3BucketName="${S3_BUCKET_NAME}"
+
+            # Deploy S3 bucket (public website for hosting reports)
+            - echo "==> Deploying S3 Reports Bucket stack..."
+            - bash deploy-cfn.sh "${STACK_PREFIX}-s3-reports"
+                "configuration/cloudformation/s3-reports.yml"
+                --parameter-overrides
+                  BucketName="${S3_BUCKET_NAME}"
+
+            # Patch webApp/index.html with actual bucket URL before uploading
+            - echo "==> Patching webApp with bucket configuration..."
+            - |
+              sed -i \
+                "s|var BUCKET_URL = '.*'|var BUCKET_URL = 'https://${S3_BUCKET_NAME}.s3.amazonaws.com'|g" \
+                webApp/index.html
+
+            # Upload the report portal to the S3 bucket root
+            - echo "==> Uploading report portal to S3..."
+            - aws s3 sync webApp/ "s3://${S3_BUCKET_NAME}/" --delete
+
+            # Print outputs for user action
+            - echo ""
+            - echo "================================================================"
+            - echo "BOOTSTRAP COMPLETE"
+            - echo "================================================================"
+            - ROLE_ARN=$(aws cloudformation describe-stacks
+                --stack-name "${STACK_PREFIX}-oidc-role"
+                --query "Stacks[0].Outputs[?OutputKey=='RoleArn'].OutputValue"
+                --output text)
+            - WEBSITE_URL=$(aws cloudformation describe-stacks
+                --stack-name "${STACK_PREFIX}-s3-reports"
+                --query "Stacks[0].Outputs[?OutputKey=='WebsiteURL'].OutputValue"
+                --output text)
+            - echo ""
+            - echo "ACTION REQUIRED ─ Save this as a Bitbucket repository variable:"
+            - echo "  Name : BITBUCKET_AWS_ROLE_ARN"
+            - echo "  Value: ${ROLE_ARN}"
+            - echo ""
+            - echo "Your report portal URL (bookmark this):"
+            - echo "  ${WEBSITE_URL}"
+            - echo "================================================================"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 2. DEPLOY-INFRA ─ Re-run if infrastructure templates or webApp change
+    # ─────────────────────────────────────────────────────────────────────────
+    Deploy-Infra:
+      - step:
+          name: "Update AWS infrastructure + Re-upload Report Portal"
+          oidc: true
+          script:
+            - set  -euo pipefail
+            - pip install --quiet --upgrade awscli
+
+            # Load project config
+            - set -a && source configuration/pipeline-config.env && set +a
+
+            # OIDC authentication
+            - export AWS_ROLE_ARN="${BITBUCKET_AWS_ROLE_ARN:?Set BITBUCKET_AWS_ROLE_ARN as a Bitbucket repository variable}"
+            - export AWS_WEB_IDENTITY_TOKEN_FILE="$(pwd)/oidc-token"
+            - echo "${BITBUCKET_STEP_OIDC_TOKEN}" > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
+            - export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}"
+            - aws sts get-caller-identity
+
+            # Re-deploy S3 stack
+            - echo "==> Deploying S3 Reports bucket stack..."
+            - bash deploy-cfn.sh "${STACK_PREFIX}-s3-reports"
+                "configuration/cloudformation/s3-reports.yml"
+                --parameter-overrides
+                  BucketName="${S3_BUCKET_NAME}"
+
+            # Patch and re-upload webApp
+            - echo "==> Patching webApp with bucket configuration..."
+            - |
+              sed -i \
+                "s|var BUCKET_URL = '.*'|var BUCKET_URL = 'https://${S3_BUCKET_NAME}.s3.amazonaws.com'|g" \
+                webApp/index.html
+            - aws s3 sync webApp/ "s3://${S3_BUCKET_NAME}/" --delete
+            - echo "==> Deploy-Infra complete."
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 3. RUN-TESTS ─ Execute tests and publish Allure report to S3
+    # ─────────────────────────────────────────────────────────────────────────
+    Run-Tests:
+      - variables:
+          - name: APP
+            default: application
+            description: "App folder name to test (e.g. application)"
+          - name: ENV
+            default: qa
+            description: "Target environment: qa or dev"
+          - name: TAGS
+            default: "@Sample"
+            description: "Behave tag expression (e.g. @Sample, @CreateContact)"
+      - step:
+          name: "Run Behave Tests + Publish Allure Report"
+          oidc: true
+          caches:
+            - pip
+          script:
+            - set -euo pipefail
+
+            # Load project config
+            - set -a && source configuration/pipeline-config.env && set +a
+
+            # OIDC authentication
+            - export AWS_ROLE_ARN="${BITBUCKET_AWS_ROLE_ARN:?Set BITBUCKET_AWS_ROLE_ARN as a Bitbucket repository variable}"
+            - export AWS_WEB_IDENTITY_TOKEN_FILE="$(pwd)/oidc-token"
+            - echo "${BITBUCKET_STEP_OIDC_TOKEN}" > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
+            - export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}"
+            - aws sts get-caller-identity
+
+            # Compute S3 path: APP/YYYY-MM-DD/BUILD_NUMBER/
+            - DATE=$(date +%Y-%m-%d)
+            - BUILD="${BITBUCKET_BUILD_NUMBER}"
+            - S3_REPORT_PATH="${APP}/${DATE}/${BUILD}"
+            - echo "==> Report will be published to: s3://${S3_BUCKET_NAME}/${S3_REPORT_PATH}/"
+
+            # Install Chrome
+            - echo "==> Installing Google Chrome..."
+            - |
+              curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+                | gpg --dearmor -o /usr/share/keyrings/google-linux-signing-keyring.gpg
+              echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-linux-signing-keyring.gpg] \
+                http://dl.google.com/linux/chrome/deb/ stable main" \
+                > /etc/apt/sources.list.d/google-chrome.list
+              apt-get update -y -qq
+              apt-get install -y -qq google-chrome-stable fonts-liberation default-jre-headless
+
+            # Install Python dependencies
+            - echo "==> Installing Python Dependencies..."
+            - pip install --quiet -r requirements.txt
+
+            # Install Allure CLI
+            - |
+              if ! command -v allure >/dev/null 2>&1; then
+                echo "==> Installing Allure CLI..."
+                curl -sL https://github.com/allure-framework/allure2/releases/download/2.29.0/allure-2.29.0.tgz \
+                  -o /tmp/allure.tgz
+                tar -xzf /tmp/allure.tgz -C /tmp
+                ln -s /tmp/allure-2.29.0/bin/allure /usr/local/bin/allure
+              fi
+
+            # Seed Allure history from previous run (enables trend graphs)
+            - echo "==> Seeding Allure history from S3..."
+            - mkdir -p "reports/${APP}/allure-results/history"
+            - aws s3 sync "s3://${S3_BUCKET_NAME}/${APP}/history/" "reports/${APP}/allure-results/history/" --exact-timestamps || true
+
+            # Run tests
+            - echo "==> Running tests (APP=${APP} ENV=${ENV} TAGS=${TAGS} HEADLESS=${HEADLESS})..."
+            - python run_behave.py --app "${APP}" --tags "${TAGS}" --env "${ENV}" --headless true || true
+
+            # Generate Allure HTML report
+            - echo "==> Generating Allure Report..."
+            - allure generate "reports/${APP}/allure-results" --clean -o "reports/${APP}/allure-report"
+
+            # Upload report to S3 under APP/DATE/BUILD/
+            - echo "==> Saving history for next run..."
+            - aws s3 sync "reports/${APP}/allure-report/history/" "s3://${S3_BUCKET_NAME}/${APP}/history/" --delete
+
+            # Print report URL
+            - WEBSITE_URL=$(aws cloudformation describe-stacks
+                --stack-name "${STACK_PREFIX}-s3-reports"
+                --query "Stacks[0].Outputs[?OutputKey=='WebsiteURL'].OutputValue"
+                --output text)
+            - echo ""
+            - echo "================================================================"
+            - echo "TESTS COMPLETE"
+            - echo "Report published at:"
+            - echo "  ${WEBSITE_URL}/?prefix=${S3_REPORT_PATH}/"
+            - echo ""
+            - echo "Or browse all runs at:"
+            - echo "  ${WEBSITE_URL}"
+            - echo "================================================================"
+
+          artifacts:
+            - reports/**/*
+            - logs/**/*
+
+definitions:
+  caches:
+    pip: ~/.cache/pip
+
+

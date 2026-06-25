@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Public S3 bucket configured as a static website for hosting Allure test reports.
+  The bucket serves the webApp portal at its root and all Allure reports under
+  the APP/DATE/BUILD_NUMBER/ prefix structure.
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: >
+      Globally unique S3 bucket name for hosting reports.
+      Use lowercase letters, numbers and hyphens only.
+
+Resources:
+  ReportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideConfigurationByDefault:
+              SSEAlgorithm: AES256
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET]
+            AllowedOrigins: ["*"]
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ReportsBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicRead
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${ReportsBucket}/*"
+
+Outputs:
+  BucketName:
+    Description: Name of the S3 reports bucket
+    Value: !Ref ReportsBucket
+
+  WebsiteURL:
+    Description: >
+      Bookmark this URL - it is your Allure report portal.
+      Open it to browse all test runs by app, date and build number.
+    Value: !Sub "https://${ReportsBucket}.s3-website-${AWS::Region}.amazonaws.com"

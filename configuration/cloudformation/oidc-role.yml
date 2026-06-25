@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  IAM Role that Bitbucket Pipelines assumes via OIDC during pipeline runs.
+  No long-lived credentials are stored anywhere - Bitbucket presents a 
+  short-lived token that AWS validates against the OIDC provider.
+
+Parameters:
+  WorkspaceSlug:
+    Type: String
+    Description: Your Bitbucket workspace slug (e.g. myworkspace)
+
+  WorkspaceUUID:
+    Type: String
+    Description: >
+      Your Bitbucket workspace UUID including curly braces
+      (e.g. {39c79d5f -e07d-4bc0-9107-bf39b0c24f41})
+
+  RepoSlug:
+    Type: String
+    Description: Your Bitbucket repository slug (e.g. seleniumbddpython)
+
+  BranchPattern:
+    Type: String
+    Default: "refs/heads/*"
+    Description: >
+      Branch pattern to restrict which branches can assume this role.
+      Use refs/heads/* to allow all branches, or refs/heads/main for main only.
+
+  RoleName:
+    Type: String
+    Description: Name for the IAM role (e.g. myproject-bitbucket-oidc-role)
+
+  S3BucketName:
+    Type: String
+    Description: Name of the S3 bucket the role needs access to.
+
+Resources:
+  BitbucketPipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/api.bitbucket.org/2.0/workspaces/${WorkspaceSlug}/pipelines-config/identity/oidc"
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "api.bitbucket.org/2.0/workspaces/${WorkspaceSlug}/pipelines-config/identity/oidc:aud":
+                  !Sub "ari:cloud:bitbucket::workspace/${WorkspaceUUID}"
+              StringLike:
+                "api.bitbucket.org/2.0/workspaces/${WorkspaceSlug}/pipelines-config/identity/oidc:sub":
+                  !Sub "repo:${WorkspaceSlug}/${RepoSlug}:${BranchPattern}"
+
+      Policies:
+        - PolicyName: S3ReportAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource:
+                  - !Sub "arn:aws:s3:::${S3BucketName}"
+                  - !Sub "arn:aws:s3:::${S3BucketName}/*"
+
+Outputs:
+  RoleArn:
+    Description: >
+      Copy this value and save it as the BITBUCKET_AWS_ROLE_ARN repository
+      variable in Bitbucket (Repository Settings → Repository variables).
+    Value: !GetAtt BitbucketPipelineRole.Arn
+
